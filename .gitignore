@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env & local data
+.env
+*.db
+*.sqlite3
+reports/
+artifacts/
+
+# Playwright
+node_modules/
+ms-playwright/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,31 @@
+# Example: upload Aegis-LLM SARIF to GitHub code scanning.
+# Save as .github/workflows/sarif-upload.yml and point RUN_ID at your run.
+name: aegis-sarif-upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Aegis-LLM run id to import"
+        required: true
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch SARIF from Aegis-LLM
+        env:
+          AEGIS_API: ${{ secrets.AEGIS_API }}
+          AEGIS_TOKEN: ${{ secrets.AEGIS_TOKEN }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          curl -sf "$AEGIS_API/runs/$RUN_ID/report?format=sarif" \
+            -H "Authorization: Bearer $AEGIS_TOKEN" -o aegis.sarif
+          cat aegis.sarif
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: aegis.sarif

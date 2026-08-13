@@ -1,0 +1,56 @@
+# Aegis-LLM scan in CI: run an attack run against a staging target and FAIL
+# the PR when findings meet/exceed the configured severity threshold.
+#
+# Configure secrets:
+#   AEGIS_API       base URL of the Aegis-LLM API
+#   AEGIS_TOKEN     bearer token (viewer+ role)
+#   AEGIS_TARGET_ID allow-listed staging target to scan
+#   AEGIS_PACKS     comma-separated pack names (default: prompt-injection,jailbreak,data-exfiltration)
+
+name: aegis-llm-scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  llm-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Launch Aegis-LLM run (dry-run first, then live)
+        id: run
+        env:
+          AEGIS_API: ${{ secrets.AEGIS_API }}
+          AEGIS_TOKEN: ${{ secrets.AEGIS_TOKEN }}
+          TARGET_ID: ${{ secrets.AEGIS_TARGET_ID }}
+          PACKS: ${{ vars.AEGIS_PACKS || 'prompt-injection,jailbreak,data-exfiltration' }}
+        run: |
+          PACK_IDS=$(curl -sf "$AEGIS_API/payload-packs" -H "Authorization: Bearer $AEGIS_TOKEN" \
+            | python -c 'import sys,json,os
+packs=os.environ["PACKS"].split(",")
+by={p["name"]:p["id"] for p in json.load(sys.stdin)}
+print(" ".join(by[n] for n in packs if n in by))')
+          read -ra IDS <<< "$PACK_IDS"
+          BODY=$(python -c 'import json,sys
+print(json.dumps({"target_id": sys.argv[1], "payload_pack_ids": sys.argv[2:], "dry_run": False}))' \
+            "$TARGET_ID" "${IDS[@]}")
+          RUN=$(curl -sf -X POST "$AEGIS_API/runs" -H "Authorization: Bearer $AEGIS_TOKEN" \
+            -H 'content-type: application/json' -d "$BODY")
+          echo "run_id=$(echo "$RUN" | python -c 'import sys,json;print(json.load(sys.stdin)["id"])')" >> "$GITHUB_OUTPUT"
+
+      - name: Policy gate — block on findings at/above severity threshold
+        env:
+          AEGIS_API: ${{ secrets.AEGIS_API }}
+          AEGIS_TOKEN: ${{ secrets.AEGIS_TOKEN }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+        run: |
+          ci/policy_gate.sh "$RUN_ID" "${AEGIS_THRESHOLD:-high}" "${AEGIS_MIN_CONF:-0.6}"
+
+      - name: Upload SARIF to code scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "*.sarif.json"

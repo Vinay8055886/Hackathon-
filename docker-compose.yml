@@ -1,0 +1,76 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: aegis
+      POSTGRES_PASSWORD: aegis
+      POSTGRES_DB: aegis
+    ports:
+      - "5432:5432"
+    volumes:
+      - aegis_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis -d aegis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    environment:
+      AEGIS_ENV: prod
+      AEGIS_DATABASE_URL: postgresql+asyncpg://aegis:aegis@db:5432/aegis
+      AEGIS_REDIS_URL: redis://redis:6379/0
+      AEGIS_RUNNER: arq
+      AEGIS_JWT_SECRET: change-me-in-production
+      AEGIS_ADMIN_USERNAME: admin
+      AEGIS_ADMIN_PASSWORD: admin
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - aegis_reports:/srv/aegis/reports
+
+  worker:
+    build: .
+    command: arq app.workers.arq_worker.WorkerSettings
+    environment:
+      AEGIS_ENV: prod
+      AEGIS_DATABASE_URL: postgresql+asyncpg://aegis:aegis@db:5432/aegis
+      AEGIS_REDIS_URL: redis://redis:6379/0
+      AEGIS_RUNNER: arq
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - aegis_reports:/srv/aegis/reports
+
+  # Optional knowledge graph (uncomment to enable the Neo4j adapter)
+  # neo4j:
+  #   image: neo4j:5-community
+  #   environment:
+  #     NEO4J_AUTH: neo4j/aegis
+  #   ports:
+  #     - "7474:7474"
+  #     - "7687:7687"
+
+volumes:
+  aegis_pgdata:
+  aegis_reports:

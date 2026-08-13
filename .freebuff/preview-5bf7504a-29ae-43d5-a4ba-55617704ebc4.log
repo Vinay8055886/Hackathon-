@@ -1,0 +1,104 @@
+
+> aegis-llm-web@0.1.0 dev
+> next dev -p 3000
+
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 4.3s
+ ○ Compiling /login ...
+ ✓ Compiled /login in 6.3s (691 modules)
+ GET /login 200 in 57ms
+ GET /login 200 in 83ms
+ ✓ Compiled /middleware in 397ms (180 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1919ms (579 modules)
+ GET /api/auth/signin?callbackUrl=%2F 302 in 2254ms
+ GET /api/auth/signin?callbackUrl=%2Fruns%2Frun-4 302 in 3143ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2F 200 in 232ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2Fruns%2Frun-4 200 in 245ms
+ GET /api/auth/session 200 in 63ms
+ GET /api/auth/session 200 in 16ms
+ GET /api/auth/session 200 in 47ms
+ GET /api/auth/session 200 in 16ms
+ GET /api/auth/signin?callbackUrl=%2F 302 in 49ms
+ GET /login?callbackUrl=http%3A%2F%2Flocalhost%3A3000%2F 200 in 77ms
+ GET /api/auth/session 200 in 19ms
+ GET /api/auth/session 200 in 13ms
+ GET /login 200 in 89ms
+ GET /api/auth/session 200 in 59ms
+ GET /api/auth/session 200 in 14ms
+ GET /api/auth/providers 200 in 40ms
+ GET /api/auth/csrf 200 in 14ms
+ POST /api/auth/callback/aegis-credentials 200 in 31ms
+ GET /api/auth/session 200 in 18ms
+ ○ Compiling / ...
+ ✓ Compiled / in 7.3s (2231 modules)
+ ○ Compiling /runs/[id] ...
+ ✓ Compiled /runs/[id] in 1529ms (2267 modules)
+ GET /runs/run-4 200 in 2818ms
+ POST /api/auth/_log 200 in 144ms
+ GET /api/auth/session 200 in 76ms
+ GET /api/auth/session 200 in 66ms
+ ○ Compiling /reports/[runId] ...
+ ✓ Compiled /reports/[runId] in 1281ms (2043 modules)
+ GET / 200 in 418ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 918ms (1262 modules)
+ GET /api/auth/session 200 in 1252ms
+ GET /api/auth/session 200 in 18ms
+ GET / 200 in 326ms
+ GET /api/auth/session 200 in 123ms
+ GET /api/auth/session 200 in 20ms
+ ✓ Compiled in 1170ms (2057 modules)
+ GET / 200 in 300ms
+ ✓ Compiled /api/auth/[...nextauth] in 423ms (1262 modules)
+ GET /api/auth/session 200 in 863ms
+ GET /api/auth/session 200 in 11ms
+ GET /api/auth/session 200 in 93ms
+ GET /api/auth/providers 200 in 86ms
+ GET /api/auth/csrf 200 in 29ms
+ POST /api/auth/callback/aegis-credentials 200 in 30ms
+ GET /api/auth/session 200 in 22ms
+ GET /runs/run-4 200 in 336ms
+ GET /api/auth/session 200 in 84ms
+ GET /api/auth/session 200 in 43ms
+ ○ Compiling /targets ...
+ ✓ Compiled /targets in 3.1s (2297 modules)
+ ○ Compiling /payload-packs ...
+ ✓ Compiled /payload-packs in 3.7s (2311 modules)
+ ○ Compiling /runs ...
+ ✓ Compiled /runs in 2.6s (2329 modules)
+ ○ Compiling /findings ...
+ ✓ Compiled /findings in 2.9s (2336 modules)
+ ○ Compiling /settings ...
+ ✓ Compiled /settings in 2.9s (2372 modules)
+ GET /api/auth/session 200 in 142ms
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3s (1815 modules)
+ ○ Compiling /_not-found ...
+ GET /runs/run-4 200 in 500ms
+ ✓ Compiled /api/auth/[...nextauth] in 1100ms (1818 modules)
+ ✓ Compiled (2060 modules)
+ GET /_next/static/css/app/layout.css?v=1786625638947 404 in 699ms
+ GET /_next/static/css/app/layout.css?v=1786625638540 404 in 1568ms
+ POST /api/auth/_log 500 in 791ms
+ GET /_next/static/chunks/main-app.js?v=1786625638947 404 in 781ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 781ms
+ GET /_next/static/chunks/app/(dashboard)/runs/%5Bid%5D/page.js 404 in 768ms
+ GET /_next/static/chunks/app/(dashboard)/layout.js 404 in 766ms
+ GET /_next/static/chunks/app/layout.js 404 in 82ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1692ms (1334 modules)
+ GET / 200 in 2410ms
+ GET /_next/static/css/app/layout.css?v=1786625646667 404 in 69ms
+ GET /_next/static/chunks/main-app.js?v=1786625646667 404 in 95ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 96ms
+ GET /_next/static/chunks/app/(dashboard)/page.js 404 in 96ms
+ GET /_next/static/chunks/app/(dashboard)/layout.js 404 in 90ms
+ GET /_next/static/chunks/app/layout.js 404 in 73ms
+ GET /api/auth/session 500 in 69ms
+ POST /api/auth/_log 500 in 52ms
+[?25h

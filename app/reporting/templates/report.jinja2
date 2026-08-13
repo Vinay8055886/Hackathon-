@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Aegis-LLM Report — {{ target.name }}</title>
+  <style>
+    body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; margin: 2rem auto; max-width: 960px; color: #1a1a1a; }
+    h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; margin-top: 2rem; }
+    .badge { display: inline-block; padding: .15rem .6rem; border-radius: 999px; font-size: .75rem; font-weight: 600; }
+    .critical { background:#7f1d1d; color:#fff; } .high { background:#b91c1c; color:#fff; }
+    .medium { background:#d97706; color:#fff; } .low { background:#2563eb; color:#fff; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #d1d5db; padding: .5rem .75rem; text-align: left; vertical-align: top; font-size: .875rem; }
+    th { background: #f3f4f6; }
+    pre { background:#f9fafb; border:1px solid #e5e7eb; padding:.75rem; overflow-x:auto; font-size:.8rem; }
+    .muted { color:#6b7280; }
+  </style>
+</head>
+<body>
+  <h1>Aegis-LLM Report</h1>
+  <p class="muted">Run {{ run.id }} · target {{ target.name }} ({{ target.connector_type }})</p>
+  <p>
+    Status: {{ run.status }}{% if run.dry_run %} · <b>DRY RUN</b>{% endif %} ·
+    Findings: <b>{{ findings|length }}</b> ·
+    Tokens: {{ run.tokens_used }} · Cost: ${{ "%.4f"|format(run.cost_estimate_usd) }}
+  </p>
+
+  {% if findings %}
+  <h2>Findings</h2>
+  <table>
+    <thead>
+      <tr><th>Severity</th><th>Category</th><th>OWASP</th><th>ATLAS</th><th>Confidence</th><th>Title</th></tr>
+    </thead>
+    <tbody>
+      {% for f in findings %}
+      <tr>
+        <td><span class="badge {{ f.severity }}">{{ f.severity }}</span></td>
+        <td>{{ f.category }}</td>
+        <td>{{ f.owasp_category }}</td>
+        <td>{{ f.mitre_atlas_id }}</td>
+        <td>{{ "%.0f"|format(f.confidence * 100) }}%</td>
+        <td>{{ f.title }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% for f in findings %}
+  <h2 id="{{ f.id }}">{{ loop.index }}. {{ f.title }}</h2>
+  <p><span class="badge {{ f.severity }}">{{ f.severity }}</span>
+     {{ f.category }} · OWASP {{ f.owasp_category }} · MITRE ATLAS {{ f.mitre_atlas_id }} ·
+     confidence {{ "%.0f"|format(f.confidence * 100) }}% · detector: {{ f.detector }}</p>
+  <h3>Evidence (redacted)</h3>
+  <pre>{{ f.redacted_evidence | tojson }}</pre>
+  <h3>Remediation</h3>
+  <p>{{ f.remediation_guidance }}</p>
+  {% endfor %}
+  {% else %}
+  <p>No findings. The target resisted every payload in this run.</p>
+  {% endif %}
+</body>
+</html>
