@@ -12,8 +12,8 @@ venv/
 .env
 *.db
 *.sqlite3
-reports/
-artifacts/
+/reports/
+/artifacts/
 
 # Playwright
 node_modules/

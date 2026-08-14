@@ -118,12 +118,21 @@ export function useRunStream(runId: string | undefined) {
             for (const line of block.split("\n")) {
               if (!line.startsWith("data: ")) continue;
               try {
-                const parsed = JSON.parse(line.slice(6)) as AgentEvent;
-                if (parsed.event_type === "stream_end") {
+                const parsed = JSON.parse(line.slice(6));
+                const eventType = parsed?.event_type || parsed?.event;
+                if (eventType === "stream_end") {
                   setStatus("closed");
                   return;
                 }
-                handleEvent(parsed);
+                if (parsed && typeof parsed === "object") {
+                  handleEvent({
+                    sequence: parsed.sequence ?? 0,
+                    run_id: parsed.run_id ?? runId,
+                    agent: parsed.agent ?? "orchestrator",
+                    event_type: eventType ?? "event",
+                    payload: parsed.payload ?? {},
+                  });
+                }
               } catch {
                 /* skip malformed frames */
               }

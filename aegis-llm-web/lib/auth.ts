@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { Role } from "@/lib/store/use-ui-store";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 const IS_MOCK = process.env.NEXT_PUBLIC_API_MOCK === "true";
 
 /**
@@ -51,13 +51,19 @@ export const authOptions: NextAuthOptions = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ username, password }),
           });
-          if (!login.ok) return null;
+          if (!login.ok) {
+            console.error("Login failed:", login.status, await login.text().catch(() => ""));
+            return null;
+          }
           const { access_token: accessToken } = await login.json();
 
           const me = await fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
-          if (!me.ok) return null;
+          if (!me.ok) {
+            console.error("Auth /me failed:", me.status, await me.text().catch(() => ""));
+            return null;
+          }
           const profile = await me.json();
           return {
             id: profile.id,
@@ -66,7 +72,8 @@ export const authOptions: NextAuthOptions = {
             role: profile.role as Role,
             accessToken,
           };
-        } catch {
+        } catch (err) {
+          console.error("Authorize connection error to backend:", err);
           return null;
         }
       },

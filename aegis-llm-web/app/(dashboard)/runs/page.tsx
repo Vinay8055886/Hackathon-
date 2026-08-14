@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Play } from "lucide-react";
+import { FileText, Play } from "lucide-react";
 import { useRuns } from "@/lib/hooks/use-runs";
 import { useTargets } from "@/lib/hooks/use-targets";
 import { formatDate } from "@/lib/utils";
@@ -116,9 +116,16 @@ export default function RunsPage() {
                     <TableCell className="text-xs text-muted-foreground">{run.started_by}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{formatDate(run.created_at)}</TableCell>
                     <TableCell className="text-right">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/runs/${run.id}`}>open</Link>
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link href={`/runs/${run.id}`}>open</Link>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/reports/${run.id}`}>
+                            <FileText className="mr-1 h-3.5 w-3.5" /> report
+                          </Link>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
