@@ -72,6 +72,7 @@ function NewRunForm() {
       const run = await createRun.mutateAsync({
         target_id: values.target_id,
         payload_pack_ids: values.payload_pack_ids,
+        run_origin: "real",
         dry_run: values.dry_run,
         max_turns: values.max_turns || undefined,
         token_budget: values.token_budget || undefined,

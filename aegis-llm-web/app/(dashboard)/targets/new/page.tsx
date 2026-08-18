@@ -22,6 +22,15 @@ const formSchema = z.object({
   connector_type: z.enum(["rest", "browser", "websocket"]),
   endpoint: z.string().url("Must be an absolute http(s)/ws(s) URL"),
   response_path: z.string().optional(),
+  // Authentication
+  api_key: z.string().optional(),
+  api_key_header: z.string().default("Authorization"),
+  api_key_prefix: z.string().default("Bearer "),
+  // API configuration
+  model_name: z.string().optional(),
+  http_method: z.string().optional(),
+  timeout_seconds: z.coerce.number().int().positive().optional(),
+  // Safety
   rate_limit_per_minute: z.coerce.number().int().positive().optional(),
   max_tokens_per_run: z.coerce.number().int().positive().optional(),
 });
@@ -49,6 +58,17 @@ export default function NewTargetPage() {
     try {
       const config: Record<string, unknown> = {};
       if (values.response_path) config.response_path = values.response_path;
+      if (values.model_name) config.model = values.model_name;
+      if (values.http_method) config.method = values.http_method;
+      if (values.timeout_seconds) config.timeout_seconds = values.timeout_seconds;
+      // Build headers with API key
+      const headers: Record<string, string> = {};
+      if (values.api_key) {
+        headers[values.api_key_header] = `${values.api_key_prefix}${values.api_key}`;
+      }
+      if (Object.keys(headers).length > 0) {
+        config.headers = headers;
+      }
       const target = await createTarget.mutateAsync({
         name: values.name,
         description: values.description,
@@ -112,12 +132,55 @@ export default function NewTargetPage() {
                 <Textarea id="description" rows={2} placeholder="What is this system and who owns it?" {...register("description")} />
               </div>
               {connectorType === "rest" ? (
-                <div className="space-y-1.5">
-                  <Label htmlFor="response_path">Response path (JSON)</Label>
-                  <Input id="response_path" placeholder="reply or choices.0.message.content" {...register("response_path")} />
-                  <p className="text-xs text-muted-foreground">Dotted path into the response JSON to extract the assistant reply.</p>
-                </div>
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="response_path">Response path (JSON)</Label>
+                    <Input id="response_path" placeholder="reply or choices.0.message.content" {...register("response_path")} />
+                    <p className="text-xs text-muted-foreground">Dotted path into the response JSON to extract the assistant reply (e.g. choices.0.message.content for OpenAI-compatible).</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="model_name">Model name (optional)</Label>
+                    <Input id="model_name" placeholder="gpt-4o, my-model, etc." {...register("model_name")} />
+                    <p className="text-xs text-muted-foreground">Model name to include in API requests.</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="http_method">HTTP method</Label>
+                    <Select value={watch("http_method") || "POST"} onValueChange={(v) => setValue("http_method", v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="POST">POST</SelectItem>
+                        <SelectItem value="PUT">PUT</SelectItem>
+                        <SelectItem value="GET">GET</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="timeout_seconds">Timeout (seconds)</Label>
+                    <Input id="timeout_seconds" type="number" placeholder="30" {...register("timeout_seconds")} />
+                  </div>
+                </>
               ) : null}
+              {/* Authentication section */}
+              <div className="col-span-full border-t pt-4 mt-2">
+                <p className="text-sm font-medium mb-3">Authentication (optional)</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="api_key_header">API Key Header</Label>
+                    <Input id="api_key_header" placeholder="Authorization" {...register("api_key_header")} />
+                    <p className="text-xs text-muted-foreground">Header name (Authorization, X-API-Key, etc.)</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="api_key_prefix">Key Prefix</Label>
+                    <Input id="api_key_prefix" placeholder="Bearer " {...register("api_key_prefix")} />
+                    <p className="text-xs text-muted-foreground">Prefix before the key value</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="api_key">API Key / Token</Label>
+                    <Input id="api_key" type="password" placeholder="sk-... or token..." {...register("api_key")} />
+                    <p className="text-xs text-muted-foreground">Stored encrypted, never shown in reports</p>
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="rate_limit">Rate limit (per minute)</Label>

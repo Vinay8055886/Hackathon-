@@ -31,6 +31,7 @@ const targets: Target[] = [
     approved_by: "admin",
     approval_note: "Own demo target — authorized for testing.",
     owner_id: "u-admin",
+    origin: "demo",
     auth_ref: null,
     rate_limit_per_minute: 60,
     max_tokens_per_run: 200000,
@@ -48,6 +49,7 @@ const targets: Target[] = [
     approved_by: null,
     approval_note: "",
     owner_id: "u-admin",
+    origin: "demo",
     auth_ref: null,
     rate_limit_per_minute: 30,
     max_tokens_per_run: 100000,
@@ -65,6 +67,7 @@ const targets: Target[] = [
     approved_by: "alice",
     approval_note: "Approved by product security review.",
     owner_id: "u-alice",
+    origin: "demo",
     auth_ref: "vault://sales-agent-token",
     rate_limit_per_minute: 120,
     max_tokens_per_run: 500000,
@@ -90,11 +93,11 @@ const payloads: Payload[] = [
 ];
 
 const runs: Run[] = [
-  { id: "run-1", target_id: "t-acme", payload_pack_ids: ["pack-pi", "pack-jb", "pack-de"], status: "completed", dry_run: false, started_by: "admin", max_turns: 10, token_budget: 200000, tokens_used: 1840, cost_estimate_usd: 0.036, findings_count: 4, error: null, created_at: iso(3_600_000 * 26), started_at: iso(3_600_000 * 26), finished_at: iso(3_600_000 * 26 - 3 * 60_000) },
-  { id: "run-2", target_id: "t-agent", payload_pack_ids: ["pack-pi"], status: "completed", dry_run: false, started_by: "alice", max_turns: 8, token_budget: 100000, tokens_used: 920, cost_estimate_usd: 0.018, findings_count: 1, error: null, created_at: iso(3_600_000 * 8), started_at: iso(3_600_000 * 8), finished_at: iso(3_600_000 * 8 - 2 * 60_000) },
-  { id: "run-3", target_id: "t-support", payload_pack_ids: ["pack-de"], status: "completed", dry_run: true, started_by: "admin", max_turns: 5, token_budget: 50000, tokens_used: 0, cost_estimate_usd: 0, findings_count: 0, error: null, created_at: iso(3_600_000 * 2), started_at: iso(3_600_000 * 2), finished_at: iso(3_600_000 * 2 - 60_000) },
-  { id: "run-4", target_id: "t-acme", payload_pack_ids: ["pack-ta", "pack-re"], status: "running", dry_run: false, started_by: "admin", max_turns: 10, token_budget: 200000, tokens_used: 340, cost_estimate_usd: 0.007, findings_count: 1, error: null, created_at: iso(60_000 * 4), started_at: iso(60_000 * 4), finished_at: null },
-  { id: "run-5", target_id: "t-agent", payload_pack_ids: ["pack-jb"], status: "failed", dry_run: false, started_by: "alice", max_turns: 6, token_budget: 50000, tokens_used: 120, cost_estimate_usd: 0.002, findings_count: 0, error: "Connector error: timeout", created_at: iso(86_400_000 * 1.2), started_at: iso(86_400_000 * 1.2), finished_at: iso(86_400_000 * 1.2 - 60_000) },
+  { id: "run-1", target_id: "t-acme", payload_pack_ids: ["pack-pi", "pack-jb", "pack-de"], status: "completed", dry_run: false, run_origin: "demo", started_by: "admin", max_turns: 10, token_budget: 200000, tokens_used: 1840, cost_estimate_usd: 0.036, findings_count: 4, error: null, created_at: iso(3_600_000 * 26), started_at: iso(3_600_000 * 26), finished_at: iso(3_600_000 * 26 - 3 * 60_000) },
+  { id: "run-2", target_id: "t-agent", payload_pack_ids: ["pack-pi"], status: "completed", dry_run: false, run_origin: "demo", started_by: "alice", max_turns: 8, token_budget: 100000, tokens_used: 920, cost_estimate_usd: 0.018, findings_count: 1, error: null, created_at: iso(3_600_000 * 8), started_at: iso(3_600_000 * 8), finished_at: iso(3_600_000 * 8 - 2 * 60_000) },
+  { id: "run-3", target_id: "t-support", payload_pack_ids: ["pack-de"], status: "completed", dry_run: true, run_origin: "demo", started_by: "admin", max_turns: 5, token_budget: 50000, tokens_used: 0, cost_estimate_usd: 0, findings_count: 0, error: null, created_at: iso(3_600_000 * 2), started_at: iso(3_600_000 * 2), finished_at: iso(3_600_000 * 2 - 60_000) },
+  { id: "run-4", target_id: "t-acme", payload_pack_ids: ["pack-ta", "pack-re"], status: "running", dry_run: false, run_origin: "demo", started_by: "admin", max_turns: 10, token_budget: 200000, tokens_used: 340, cost_estimate_usd: 0.007, findings_count: 1, error: null, created_at: iso(60_000 * 4), started_at: iso(60_000 * 4), finished_at: null },
+  { id: "run-5", target_id: "t-agent", payload_pack_ids: ["pack-jb"], status: "failed", dry_run: false, run_origin: "demo", started_by: "alice", max_turns: 6, token_budget: 50000, tokens_used: 120, cost_estimate_usd: 0.002, findings_count: 0, error: "Connector error: timeout", created_at: iso(86_400_000 * 1.2), started_at: iso(86_400_000 * 1.2), finished_at: iso(86_400_000 * 1.2 - 60_000) },
 ];
 
 const findings: Finding[] = [
@@ -152,6 +155,7 @@ export async function createTarget(body: TargetCreate): Promise<Target> {
     approved_by: null,
     approval_note: "",
     owner_id: "u-admin",
+    origin: "real",
     auth_ref: body.auth_ref ?? null,
     rate_limit_per_minute: body.rate_limit_per_minute ?? null,
     max_tokens_per_run: body.max_tokens_per_run ?? null,
@@ -202,6 +206,7 @@ export async function createRun(body: RunCreate): Promise<Run> {
     payload_pack_ids: body.payload_pack_ids,
     status: "running",
     dry_run: body.dry_run ?? false,
+    run_origin: body.run_origin ?? "real",
     started_by: "admin",
     max_turns: body.max_turns ?? 10,
     token_budget: body.token_budget ?? 200000,

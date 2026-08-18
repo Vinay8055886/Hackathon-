@@ -62,6 +62,7 @@ export default function RunDetailPage({ params }: { params: { id: string } }) {
             <h1 className="text-xl font-semibold">{target?.name ?? run.target_id.slice(0, 8)}</h1>
             <RunStatusIndicator status={run.status} />
             {run.dry_run ? <Badge variant="secondary">dry-run</Badge> : <Badge className="bg-severity-low/15 text-severity-low">live</Badge>}
+            {run.run_origin === "demo" ? <Badge variant="outline">demo</Badge> : run.run_origin === "real" ? <Badge className="bg-emerald-500/15 text-emerald-500">real</Badge> : null}
             {ci.data ? (
               <Badge className={ciPassed ? "bg-emerald-500/15 text-emerald-500" : "bg-severity-critical/15 text-severity-critical"}>
                 CI gate {ciPassed ? "passed" : "blocked"}

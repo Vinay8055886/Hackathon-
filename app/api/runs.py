@@ -51,6 +51,7 @@ async def create_run(
         payload_pack_ids=body.payload_pack_ids,
         status="scheduled",
         dry_run=dry_run,
+        run_origin=body.run_origin or "real",
         started_by=user.id,
         max_turns=body.max_turns or settings.default_max_turns,
         token_budget=body.token_budget or target.max_tokens_per_run
@@ -71,12 +72,15 @@ async def list_runs(
     user: User = Depends(require_roles(ROLE_VIEWER)),
     status_filter: str | None = Query(default=None, alias="status"),
     target_id: str | None = None,
+    run_origin: str | None = None,
 ) -> list[RunOut]:
     stmt = select(Run).order_by(Run.created_at.desc()).limit(200)
     if status_filter:
         stmt = stmt.where(Run.status == status_filter)
     if target_id:
         stmt = stmt.where(Run.target_id == target_id)
+    if run_origin:
+        stmt = stmt.where(Run.run_origin == run_origin)
     rows = (await session.execute(stmt)).scalars().all()
     return [RunOut.model_validate(r) for r in rows]
 

@@ -52,6 +52,7 @@ class TargetOut(BaseModel):
     approved_by: str | None = None
     approval_note: str = ""
     owner_id: str
+    origin: str = "real"
     auth_ref: str | None = None
     rate_limit_per_minute: int | None = None
     max_tokens_per_run: int | None = None

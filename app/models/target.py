@@ -27,6 +27,9 @@ class Target(Base):
     approved_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
     approval_note: Mapped[str] = mapped_column(Text, default="")
 
+    # real | demo | test — distinguishes demo seeds from user-registered targets
+    origin: Mapped[str] = mapped_column(String(16), default="real", index=True)
+
     owner_id: Mapped[str] = mapped_column(String(36), index=True)
     auth_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
     rate_limit_per_minute: Mapped[int | None] = mapped_column(nullable=True)

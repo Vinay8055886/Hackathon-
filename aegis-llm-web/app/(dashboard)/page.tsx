@@ -110,7 +110,9 @@ export default function DashboardPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{targetName(run.target_id)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {run.dry_run ? "dry-run · " : ""}started {formatDate(run.created_at)}
+                      {run.dry_run ? "dry-run · " : ""}
+                      {run.run_origin === "demo" ? "demo · " : ""}
+                      started {formatDate(run.created_at)}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">

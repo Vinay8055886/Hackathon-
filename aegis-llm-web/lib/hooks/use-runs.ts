@@ -5,10 +5,10 @@ import { api } from "@/lib/api";
 import { RunCreate } from "@/lib/api/schemas";
 import { qk } from "@/lib/hooks/query-keys";
 
-export function useRuns(status?: string, targetId?: string) {
+export function useRuns(status?: string, targetId?: string, runOrigin?: string) {
   return useQuery({
     queryKey: qk.runs(status),
-    queryFn: () => api.listRuns(status, targetId),
+    queryFn: () => api.listRuns(status, targetId, runOrigin),
   });
 }
 

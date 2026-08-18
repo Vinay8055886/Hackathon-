@@ -12,6 +12,7 @@ class RunCreate(BaseModel):
     target_id: str
     payload_pack_ids: list[str] = Field(min_length=1)
     dry_run: bool | None = None  # None → server default (AEGIS_DRY_RUN_DEFAULT)
+    run_origin: str = "real"  # real | demo | test
     max_turns: int | None = Field(default=None, ge=1, le=200)
     token_budget: int | None = Field(default=None, ge=1)
 
@@ -29,6 +30,7 @@ class RunOut(BaseModel):
     payload_pack_ids: list[str] = []
     status: str
     dry_run: bool
+    run_origin: str = "real"  # real | demo | test
     started_by: str
     max_turns: int
     token_budget: int
