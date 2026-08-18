@@ -34,6 +34,7 @@ async def lifespan(app: FastAPI):
         await bootstrap(session)
     logger.info("Aegis-LLM ready (env=%s runner=%s)", get_settings().env, get_settings().runner)
     # Production safety warnings
+    settings = get_settings()
     if settings.is_prod:
         warnings = []
         if settings.jwt_secret in ("change-me-in-production", ""):
