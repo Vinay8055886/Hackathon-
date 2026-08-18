@@ -24,11 +24,11 @@ class ReportOut(BaseModel):
 
 
 class CiGateRequest(BaseModel):
-    run_id: str | None = None
-    findings: list[dict[str, Any]] | None = None
+    run_id: str | None = Field(default=None, max_length=36)
+    findings: list[dict[str, Any]] | None = Field(default=None, max_length=1000)
     severity_threshold: str = "high"
     min_confidence: float = Field(default=0.6, ge=0.0, le=1.0)
-    block_categories: list[str] = []
+    block_categories: list[str] = Field(default_factory=list, max_length=50)
     sarif: bool = True
 
     @field_validator("severity_threshold")

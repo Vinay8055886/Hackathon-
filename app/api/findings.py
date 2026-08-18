@@ -1,8 +1,8 @@
-"""Findings query routes — evidence is always served redacted."""
+"""Finding query routes — evidence is always served redacted."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from app.api.deps import SessionDep, require_roles
@@ -18,22 +18,26 @@ CATEGORIES = (
     "guardrail_bypass", "tool_abuse", "hallucination", "resource_exhaustion",
     "other",
 )
+FINDING_STATUSES = ("open", "confirmed", "triaged", "accepted", "fixed")
 
 
 @router.get("", response_model=list[FindingOut])
 async def list_findings(
     session: SessionDep,
     user: User = Depends(require_roles(ROLE_VIEWER)),
-    severity: str | None = None,
-    owasp_category: str | None = None,
-    mitre_atlas_id: str | None = None,
-    run_id: str | None = None,
-    category: str | None = None,
-    status: str | None = None,
+    severity: str | None = Query(default=None, max_length=16),
+    owasp_category: str | None = Query(default=None, max_length=16),
+    mitre_atlas_id: str | None = Query(default=None, max_length=64),
+    run_id: str | None = Query(default=None, max_length=36),
+    category: str | None = Query(default=None, max_length=64),
+    status: str | None = Query(default=None, max_length=32),
 ) -> list[FindingOut]:
     stmt = select(Finding).order_by(Finding.created_at.desc()).limit(500)
     if severity:
-        stmt = stmt.where(Finding.severity == severity.lower())
+        severity = severity.lower()
+        if severity not in SEVERITIES:
+            raise HTTPException(status_code=422, detail=f"severity must be one of {SEVERITIES}")
+        stmt = stmt.where(Finding.severity == severity)
     if owasp_category:
         stmt = stmt.where(Finding.owasp_category == owasp_category.upper())
     if mitre_atlas_id:
@@ -43,6 +47,8 @@ async def list_findings(
     if category:
         stmt = stmt.where(Finding.category == category)
     if status:
+        if status not in FINDING_STATUSES:
+            raise HTTPException(status_code=422, detail=f"status must be one of {FINDING_STATUSES}")
         stmt = stmt.where(Finding.status == status)
     rows = (await session.execute(stmt)).scalars().all()
     return [_out(f) for f in rows]
@@ -68,8 +74,8 @@ async def update_finding_status(
     finding = await session.get(Finding, finding_id)
     if finding is None:
         raise HTTPException(status_code=404, detail=f"finding {finding_id} not found")
-    if status not in {"open", "confirmed", "triaged", "accepted", "fixed"}:
-        raise HTTPException(status_code=422, detail=f"unknown status {status!r}")
+    if status not in FINDING_STATUSES:
+        raise HTTPException(status_code=422, detail=f"status must be one of {FINDING_STATUSES}")
     finding.status = status
     await session.commit()
     await session.refresh(finding)

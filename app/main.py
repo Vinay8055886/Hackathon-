@@ -33,6 +33,17 @@ async def lifespan(app: FastAPI):
     async with session_factory() as session:
         await bootstrap(session)
     logger.info("Aegis-LLM ready (env=%s runner=%s)", get_settings().env, get_settings().runner)
+    # Production safety warnings
+    if settings.is_prod:
+        warnings = []
+        if settings.jwt_secret in ("change-me-in-production", ""):
+            warnings.append("AEGIS_JWT_SECRET is the default — MUST be changed")
+        if settings.admin_password in ("admin", ""):
+            warnings.append("AEGIS_ADMIN_PASSWORD is the default — MUST be changed")
+        if settings.database_url.startswith("sqlite"):
+            warnings.append("SQLite is not recommended for production — use PostgreSQL")
+        for w in warnings:
+            logger.warning("SECURITY: %s", w)
     yield
     from app.core.redis import close_redis
 
@@ -55,11 +66,27 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
+    # Security middleware (applied in reverse order — last added = first executed)
+    from app.core.security_middleware import (
+        BodySizeLimitMiddleware,
+        SecurityHeadersMiddleware,
+    )
+
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(BodySizeLimitMiddleware, max_body_bytes=1_048_576)  # 1 MB
+
+    # CORS: permissive in dev, locked down in prod
+    allowed_origins = (
+        ["http://localhost:3000", "http://127.0.0.1:3000"]
+        if not settings.is_prod
+        else []
+    )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.is_prod and [] or ["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_origins=allowed_origins,
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_headers=["Authorization", "Content-Type", "Accept"],
+        allow_credentials=True,
     )
 
     app.include_router(health.router)
