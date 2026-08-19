@@ -166,7 +166,7 @@ async def stream_run(
         for e in history:
             yield _sse(_event_payload(e))
         if run.status in {"completed", "failed", "cancelled"}:
-            yield _sse(json.dumps({"event": "stream_end", "run_id": run_id}))
+            yield _sse(json.dumps({"event_type": "stream_end", "run_id": run_id}))
             return
         stream = await subscribe_run(run_id)
         try:
@@ -178,7 +178,7 @@ async def stream_run(
                     break
         finally:
             await stream.aclose()
-        yield _sse(json.dumps({"event": "stream_end", "run_id": run_id}))
+        yield _sse(json.dumps({"event_type": "stream_end", "run_id": run_id}))
 
     return StreamingResponse(
         event_gen(),

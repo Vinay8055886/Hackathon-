@@ -106,7 +106,7 @@ export const api = {
   },
   async getReportText(runId: string, format: "html" | "sarif" | "json"): Promise<string> {
     if (IS_MOCK) return mock.getReportText(runId, format);
-    return apiFetch<string>(`/runs/${runId}/report/download?format=${format}`, { raw: true });
+    return apiFetch<string>(`/runs/${runId}/report?format=${format}`, { raw: true });
   },
 
   // ── ci ────────────────────────────────────────────────────────────────────

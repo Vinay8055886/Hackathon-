@@ -1,7 +1,7 @@
 import { useUiStore } from "@/lib/store/use-ui-store";
 
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export const IS_MOCK = process.env.NEXT_PUBLIC_API_MOCK === "true";
 

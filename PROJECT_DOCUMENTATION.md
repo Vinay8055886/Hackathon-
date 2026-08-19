@@ -44,7 +44,18 @@ Aegis-LLM is an async-first Python 3.11+ system powered by FastAPI and SQLAlchem
 
 #### E. Detailed Technical Explanation
 *(Refer to Sections 3 through 10 for complete structural and mathematical breakdowns.)*
+#### F. 2 Minutes Explination
+"Our project is Aegis-LLM, an automated security testing and red-teaming platform for LLM applications.
 
+The main problem we address is that LLM applications can have security vulnerabilities such as prompt injection, prompt leakage, sensitive information exposure and guardrail bypasses. Manually testing all these cases is time-consuming, so our system automates the testing process.
+
+The system works using multiple agents. First, the Attacker Agent selects an adversarial payload. Before sending it, the Interaction Guard checks whether the target is authorized and also applies rate limiting, token budgeting and a circuit breaker. Then the payload is sent to the target AI application.
+
+The target's response is analyzed by the Judge Agent using six detectors: Secrets, PII, Prompt Leak, Guardrail Bypass, Hallucination and Resource Exhaustion. If the result is unclear or the attack needs another variation, the Refiner Agent can modify the payload and test again. The Memory Agent stores the results and findings.
+
+Finally, the system generates HTML, JSON or SARIF reports. The SARIF results can be integrated with CI/CD, where serious security findings can cause the build to fail.
+
+So, in simple terms, Aegis-LLM automatically acts like a security tester for AI applications, while maintaining safety controls throughout the testing process."
 ---
 
 ## 2. Complete Architecture & System Design
