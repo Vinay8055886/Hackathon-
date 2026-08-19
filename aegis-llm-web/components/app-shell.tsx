@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <Link href="/" className="flex items-center gap-2 border-b px-4 py-4">
           <ShieldCheck className="h-5 w-5 text-severity-low" />
           <div>
-            <p className="text-sm font-semibold leading-none">Aegis-LLM</p>
+           <p className="text-sm font-semibold leading-none text-red-500">Aegis-LLM</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">red-teaming platform</p>
           </div>
         </Link>
@@ -79,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur">
-          <p className="text-sm font-medium text-muted-foreground lg:hidden">Aegis-LLM</p>
+          <p className="text-sm font-medium text-red-500 lg:hidden">Aegis-LLM</p>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
             <DropdownMenu>
