@@ -29,13 +29,13 @@
 
 ## 1. Prerequisites
 
-| Requirement | Minimum Version | Notes |
-|---|---|---|
-| Python | 3.11+ | Required by the backend |
-| Node.js | 18+ | Only for the web frontend |
-| Docker & Docker Compose | 24+ / v2 | For the full-stack Docker setup |
-| PostgreSQL (optional) | 16 | Only if not using SQLite for dev |
-| Redis (optional) | 7 | Only needed for ARQ worker (`AEGIS_RUNNER=arq`) |
+| Requirement             | Minimum Version | Notes                                                                                                       |
+| ----------------------- | --------------- | ----------------------------------------------------------------------------------------------------------- |
+| Python                  | 3.11+           | Required by the backend; Windows users can run the project using `.venv\Scripts\python.exe`                 |
+| Node.js                 | 18+             | Required for the web frontend; Windows users can use `npm.cmd` if PowerShell script execution is restricted |
+| Docker & Docker Compose | 24+ / v2        | For the full-stack Docker setup                                                                             |
+| PostgreSQL (optional)   | 16              | Only if not using SQLite for dev                                                                            |
+| Redis (optional)        | 7               | Only needed for ARQ worker (`AEGIS_RUNNER=arq`)                                                             |
 
 ---
 
