@@ -9,11 +9,12 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class RunCreate(BaseModel):
-    target_id: str
-    payload_pack_ids: list[str] = Field(min_length=1)
+    target_id: str = Field(min_length=1, max_length=36)
+    payload_pack_ids: list[str] = Field(min_length=1, max_length=20)
     dry_run: bool | None = None  # None → server default (AEGIS_DRY_RUN_DEFAULT)
+    run_origin: str = Field(default="real", pattern=r"^(real|demo|test)$")
     max_turns: int | None = Field(default=None, ge=1, le=200)
-    token_budget: int | None = Field(default=None, ge=1)
+    token_budget: int | None = Field(default=None, ge=1, le=10_000_000)
 
     @field_validator("payload_pack_ids")
     @classmethod
@@ -29,6 +30,7 @@ class RunOut(BaseModel):
     payload_pack_ids: list[str] = []
     status: str
     dry_run: bool
+    run_origin: str = "real"  # real | demo | test
     started_by: str
     max_turns: int
     token_budget: int

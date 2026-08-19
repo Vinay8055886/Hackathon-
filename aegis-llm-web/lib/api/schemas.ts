@@ -14,6 +14,7 @@ export const targetSchema = z.object({
   approved_by: z.string().nullable().default(null),
   approval_note: z.string().default(""),
   owner_id: z.string(),
+  origin: z.enum(["real", "demo", "test"]).default("real"),
   auth_ref: z.string().nullable().default(null),
   rate_limit_per_minute: z.number().nullable().default(null),
   max_tokens_per_run: z.number().nullable().default(null),
@@ -82,6 +83,7 @@ export const runSchema = z.object({
   payload_pack_ids: z.array(z.string()).default([]),
   status: runStatusSchema,
   dry_run: z.boolean(),
+  run_origin: z.enum(["real", "demo", "test"]).default("real"),
   started_by: z.string(),
   max_turns: z.number(),
   token_budget: z.number(),
@@ -98,6 +100,7 @@ export const runCreateSchema = z.object({
   target_id: z.string().min(1, "Target is required"),
   payload_pack_ids: z.array(z.string()).min(1, "Pick at least one payload pack"),
   dry_run: z.boolean().optional(),
+  run_origin: z.enum(["real", "demo", "test"]).default("real"),
   max_turns: z.coerce.number().int().min(1).max(200).optional(),
   token_budget: z.coerce.number().int().positive().optional(),
 });

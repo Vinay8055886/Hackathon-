@@ -56,11 +56,12 @@ export const api = {
   },
 
   // ── runs ──────────────────────────────────────────────────────────────────
-  listRuns(status?: string, targetId?: string): Promise<Run[]> {
+  listRuns(status?: string, targetId?: string, runOrigin?: string): Promise<Run[]> {
     if (IS_MOCK) return mock.listRuns(status, targetId);
     const params = new URLSearchParams();
     if (status) params.set("status", status);
     if (targetId) params.set("target_id", targetId);
+    if (runOrigin) params.set("run_origin", runOrigin);
     const qs = params.toString();
     return apiFetch<Run[]>(`/runs${qs ? `?${qs}` : ""}`);
   },

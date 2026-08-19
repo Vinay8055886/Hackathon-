@@ -17,13 +17,17 @@
   </style>
 </head>
 <body>
-  <h1>Aegis-LLM Report</h1>
-  <p class="muted">Run {{ run.id }} · target {{ target.name }} ({{ target.connector_type }})</p>
-  <p>
-    Status: {{ run.status }}{% if run.dry_run %} · <b>DRY RUN</b>{% endif %} ·
-    Findings: <b>{{ findings|length }}</b> ·
-    Tokens: {{ run.tokens_used }} · Cost: ${{ "%.4f"|format(run.cost_estimate_usd) }}
-  </p>
+  <h1>AEGIS-LLM SECURITY ASSESSMENT</h1>
+  <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:1rem; margin:1rem 0; border-radius:0.5rem;">
+    <p><strong>Target:</strong> {{ target.endpoint }}</p>
+    <p><strong>Target Type:</strong> {{ target.connector_type | upper }}{% if target.config.get('model') %} (Model: {{ target.config.get('model') }}){% endif %}</p>
+    <p><strong>Target Name:</strong> {{ target.name }}</p>
+    <p><strong>Run ID:</strong> {{ run.id }}</p>
+    <p><strong>Status:</strong> {{ run.status | upper }}{% if run.dry_run %} · <b>DRY RUN</b>{% endif %}</p>
+    <p><strong>Findings:</strong> <b>{{ findings|length }}</b></p>
+    <p><strong>Tokens Used:</strong> {{ run.tokens_used }} · <strong>Cost:</strong> ${{ "%.4f"|format(run.cost_estimate_usd) }}</p>
+    <p><strong>Scan Type:</strong> {% if 'demo' in target.name.lower() or 'mock' in target.name.lower() %}DEMO{% else %}REAL TARGET{% endif %}</p>
+  </div>
 
   {% if findings %}
   <h2>Findings</h2>

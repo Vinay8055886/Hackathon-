@@ -51,6 +51,7 @@ async def create_run(
         payload_pack_ids=body.payload_pack_ids,
         status="scheduled",
         dry_run=dry_run,
+        run_origin=body.run_origin or "real",
         started_by=user.id,
         max_turns=body.max_turns or settings.default_max_turns,
         token_budget=body.token_budget or target.max_tokens_per_run
@@ -69,14 +70,23 @@ async def create_run(
 async def list_runs(
     session: SessionDep,
     user: User = Depends(require_roles(ROLE_VIEWER)),
-    status_filter: str | None = Query(default=None, alias="status"),
-    target_id: str | None = None,
+    status_filter: str | None = Query(default=None, alias="status", max_length=32),
+    target_id: str | None = Query(default=None, max_length=36),
+    run_origin: str | None = Query(default=None, max_length=16),
 ) -> list[RunOut]:
+    RUN_STATUSES = ("scheduled", "running", "completed", "failed", "cancelled")
+    RUN_ORIGINS = ("real", "demo", "test")
     stmt = select(Run).order_by(Run.created_at.desc()).limit(200)
     if status_filter:
+        if status_filter not in RUN_STATUSES:
+            raise HTTPException(status_code=422, detail=f"status must be one of {RUN_STATUSES}")
         stmt = stmt.where(Run.status == status_filter)
     if target_id:
         stmt = stmt.where(Run.target_id == target_id)
+    if run_origin:
+        if run_origin not in RUN_ORIGINS:
+            raise HTTPException(status_code=422, detail=f"run_origin must be one of {RUN_ORIGINS}")
+        stmt = stmt.where(Run.run_origin == run_origin)
     rows = (await session.execute(stmt)).scalars().all()
     return [RunOut.model_validate(r) for r in rows]
 
@@ -156,7 +166,7 @@ async def stream_run(
         for e in history:
             yield _sse(_event_payload(e))
         if run.status in {"completed", "failed", "cancelled"}:
-            yield _sse(json.dumps({"event": "stream_end", "event_type": "stream_end", "run_id": run_id}))
+            yield _sse(json.dumps({"event": "stream_end", "run_id": run_id}))
             return
         stream = await subscribe_run(run_id)
         try:
@@ -168,7 +178,7 @@ async def stream_run(
                     break
         finally:
             await stream.aclose()
-        yield _sse(json.dumps({"event": "stream_end", "event_type": "stream_end", "run_id": run_id}))
+        yield _sse(json.dumps({"event": "stream_end", "run_id": run_id}))
 
     return StreamingResponse(
         event_gen(),

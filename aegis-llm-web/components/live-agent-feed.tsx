@@ -16,9 +16,8 @@ const AGENT_META: Record<string, { label: string; icon: typeof Swords; color: st
 };
 
 function eventSummary(e: AgentEvent): string {
-  const eventType = e?.event_type || (e as unknown as { event?: string })?.event || "unknown_event";
-  const p = e?.payload ?? {};
-  switch (eventType) {
+  const p = e.payload ?? {};
+  switch (e.event_type) {
     case "payload_selected":
       return `Selected payload ${p.slug ?? "?"}${p.risk ? ` (risk: ${p.risk})` : ""}`;
     case "target_response":
@@ -35,13 +34,11 @@ function eventSummary(e: AgentEvent): string {
       return `Run started (max ${p.max_turns ?? "?"} turns)`;
     case "run_finished":
       return `Run finished — ${p.status}, ${p.findings ?? 0} findings`;
-    case "stream_end":
-      return "Event stream completed";
     case "run_failed":
     case "safety_blocked":
-      return String(p.message ?? p.error ?? eventType);
+      return String(p.message ?? p.error ?? e.event_type);
     default:
-      return typeof eventType === "string" ? eventType.replace(/_/g, " ") : "Event received";
+      return e.event_type.replace(/_/g, " ");
   }
 }
 

@@ -20,6 +20,8 @@ class Run(Base):
     status: Mapped[str] = mapped_column(String(32), default="scheduled", index=True)
     # scheduled | running | completed | failed | cancelled
     dry_run: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    # real | demo | test — distinguishes user-initiated scans from demo seeds
+    run_origin: Mapped[str] = mapped_column(String(16), default="real", index=True)
     started_by: Mapped[str] = mapped_column(String(36), index=True)
     max_turns: Mapped[int] = mapped_column(Integer, default=10)
     token_budget: Mapped[int] = mapped_column(Integer, default=200_000)

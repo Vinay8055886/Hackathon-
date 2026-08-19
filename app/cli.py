@@ -70,9 +70,33 @@ async def _resolve_packs(session, names: list[str]) -> list[str]:
 
 # ── commands ────────────────────────────────────────────────────────────────
 async def cmd_init_db(args: argparse.Namespace) -> None:
+    from app.core.db import get_engine
     from app.services.bootstrap import bootstrap
 
     await init_db()
+
+    # Ensure origin column exists on existing databases (safe no-op if already present)
+    engine = get_engine()
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE targets ADD COLUMN origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+            print("  Added origin column to targets table.")
+        except Exception:
+            pass  # column already exists
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE runs ADD COLUMN run_origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+            print("  Added run_origin column to runs table.")
+        except Exception:
+            pass  # column already exists
+
     async with get_session_factory()() as session:
         await bootstrap(session)
     print("Database initialised: tables created, roles + admin user + bundled packs seeded.")
@@ -178,6 +202,7 @@ async def cmd_run(args: argparse.Namespace) -> None:
             payload_pack_ids=pack_ids,
             status="scheduled",
             dry_run=dry_run,
+            run_origin="real",
             started_by=user.id,
             max_turns=args.max_turns or get_settings().default_max_turns,
             token_budget=target.max_tokens_per_run or get_settings().default_max_tokens_per_run,
@@ -310,20 +335,35 @@ async def cmd_demo(args: argparse.Namespace) -> None:
         await bootstrap(session)
         user = await _admin_user(session)
         from app.models import Target
+        from sqlalchemy import select as sa_select
 
-        target = Target(
-            name="acme-chat-demo",
-            description="Bundled deliberately vulnerable mock target",
-            connector_type="rest",
-            endpoint=f"{base}/chat",
-            config={"response_path": "reply"},
-            owner_id=user.id,
-            allowlisted=True,
-            approved_by=user.username,
-            approval_note="Demo target; explicitly authorized for testing.",
-        )
-        session.add(target)
-        await session.flush()
+        # Reuse existing demo target if present (idempotent)
+        existing = (
+            await session.execute(
+                sa_select(Target).where(Target.name == "acme-chat-demo")
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            target = existing
+            target.endpoint = f"{base}/chat"
+            target.origin = "demo"
+            await session.flush()
+            print(f"Reusing existing demo target {target.id}")
+        else:
+            target = Target(
+                name="acme-chat-demo",
+                description="Bundled deliberately vulnerable mock target",
+                connector_type="rest",
+                endpoint=f"{base}/chat",
+                config={"response_path": "reply"},
+                owner_id=user.id,
+                origin="demo",
+                allowlisted=True,
+                approved_by=user.username,
+                approval_note="Demo target; explicitly authorized for testing.",
+            )
+            session.add(target)
+            await session.flush()
         target_id = target.id
 
         from app.agents.orchestrator import AttackOrchestrator, materialize_payloads
@@ -336,7 +376,7 @@ async def cmd_demo(args: argparse.Namespace) -> None:
         # 1) Dry run first — validates the pipeline, touches nothing.
         dry = Run(
             target_id=target_id, payload_pack_ids=pack_ids, status="scheduled",
-            dry_run=True, started_by=user.id,
+            dry_run=True, run_origin="demo", started_by=user.id,
             max_turns=get_settings().default_max_turns,
             token_budget=get_settings().default_max_tokens_per_run,
         )
@@ -350,7 +390,7 @@ async def cmd_demo(args: argparse.Namespace) -> None:
         # 2) Live run with streaming events.
         live = Run(
             target_id=target_id, payload_pack_ids=pack_ids, status="scheduled",
-            dry_run=False, started_by=user.id,
+            dry_run=False, run_origin="demo", started_by=user.id,
             max_turns=get_settings().default_max_turns,
             token_budget=get_settings().default_max_tokens_per_run,
         )
@@ -372,6 +412,344 @@ async def cmd_demo(args: argparse.Namespace) -> None:
             print(f"      {fmt.upper():<4} -> {report.storage_path}")
 
         print("\nDone. Explore via the REST API (`uvicorn app.main:app`) or the CLI.")
+
+
+# ── scan-real: quick one-command scan against a real AI/LLM ─────────────────
+async def cmd_scan_real(args: argparse.Namespace) -> None:
+    """Register a real AI/LLM target and run a security scan against it."""
+    import time as _time
+
+    import httpx
+
+    from app.models import Target
+
+    settings = get_settings()
+    await init_db(create_all=False)
+
+    # ── Step 1: Build target config
+    config: dict[str, Any] = {}
+    if args.response_path:
+        config["response_path"] = args.response_path
+    if args.headers:
+        config["headers"] = json.loads(args.headers)
+    if args.body_template:
+        config["body_template"] = json.loads(args.body_template)
+    if args.model:
+        config["model"] = args.model
+    if args.method:
+        config["method"] = args.method
+    if args.timeout:
+        config["timeout_seconds"] = args.timeout
+
+    # ── Step 2: Test connection
+    print(f"\n[1/4] Testing connection to {args.url} ...")
+    probe_messages = [{"role": "user", "content": "Hello, connectivity test."}]
+    body_json = config.get("body_template")
+    if body_json is not None:
+        body_json = json.loads(json.dumps(body_json).replace("{messages}", json.dumps(probe_messages)))
+    else:
+        body_json = {
+            "model": args.model or "test-model",
+            "messages": probe_messages,
+            "max_tokens": 20,
+        }
+
+    probe_headers = config.get("headers") or {}
+    try:
+        async with httpx.AsyncClient(timeout=args.timeout or 15, verify=not args.insecure) as client:
+            start = _time.monotonic()
+            resp = await client.request(
+                args.method or "POST", args.url,
+                json=body_json, headers=probe_headers,
+            )
+            latency = int((_time.monotonic() - start) * 1000)
+            if resp.status_code >= 500:
+                raise SystemExit(f"Target returned HTTP {resp.status_code}: {resp.text[:200]}")
+            print(f"      Status: {resp.status_code} | Latency: {latency}ms | CONNECTED")
+    except httpx.ConnectError as exc:
+        raise SystemExit(f"Cannot connect to {args.url}: {exc}")
+    except httpx.TimeoutException:
+        raise SystemExit(f"Connection to {args.url} timed out after {args.timeout or 15}s")
+    except SystemExit:
+        raise
+    except Exception as exc:
+        raise SystemExit(f"Connection test failed: {exc}")
+
+    # ── Step 3: Register target
+    print("\n[2/4] Registering target ...")
+    async with get_session_factory()() as session:
+        user = await _admin_user(session)
+        target = Target(
+            name=args.name or f"real-{args.url.split('//')[-1].split('/')[0][:40]}",
+            description=args.description or f"Real AI/LLM target at {args.url}",
+            connector_type=args.connector_type or "rest",
+            endpoint=args.url,
+            config=config,
+            owner_id=user.id,
+            allowlisted=True,  # user explicitly authorized via CLI
+            approved_by=user.username,
+            approval_note=f"Registered via scan-real CLI; user authorized testing of {args.url}",
+        )
+        session.add(target)
+        await session.flush()
+        target_id = target.id
+        print(f"      Target: {target.name} ({target.id})")
+        print(f"      Endpoint: {target.endpoint}")
+        print(f"      Connector: {target.connector_type}")
+        print(f"      Status: ALLOW-LISTED (authorized by {user.username})")
+
+        # ── Step 4: Run scan
+        from app.agents.orchestrator import AttackOrchestrator, materialize_payloads
+        from app.models import Run
+
+        packs = [p.strip() for p in args.packs.split(",") if p.strip()]
+        pack_ids = await _resolve_packs(session, packs)
+        dry_run = args.dry_run if args.dry_run is not None else settings.dry_run_default
+        run = Run(
+            target_id=target_id,
+            payload_pack_ids=pack_ids,
+            status="scheduled",
+            dry_run=dry_run,
+            run_origin="real",
+            started_by=user.id,
+            max_turns=args.max_turns or settings.default_max_turns,
+            token_budget=target.max_tokens_per_run or settings.default_max_tokens_per_run,
+        )
+        session.add(run)
+        await session.flush()
+        run_id = run.id
+
+        payloads = await materialize_payloads(session, pack_ids)
+        orchestrator = AttackOrchestrator(session, run, target, payloads)
+        mode = "DRY-RUN" if dry_run else "LIVE (REAL TARGET)"
+        print(f"\n[3/4] [{mode}] launching scan {run_id}")
+        print(f"      Payloads: {len(payloads)} | Max turns: {run.max_turns}")
+        print(f"      Target endpoint: {target.endpoint}")
+        await orchestrator.execute()
+        await session.commit()
+
+        # ── Step 5: Summary
+        print(f"\n[4/4] Scan complete")
+        await _print_run_summary(session, run_id)
+
+        # Generate report
+        from app.reporting.report_service import generate_report
+
+        report = await generate_report(session, run_id, "html", generated_by="cli-scan-real")
+        await session.commit()
+        print(f"\nReport: {report.storage_path}")
+
+        if not dry_run:
+            print(f"\n{'='*72}")
+            print(f"REAL TARGET SECURITY SCAN COMPLETE")
+            print(f"Target: {target.endpoint}")
+            print(f"Status: {run.status}")
+            print(f"Findings: {run.findings_count}")
+            print(f"{'='*72}")
+
+
+async def cmd_reset_demo_data(args: argparse.Namespace) -> None:
+    """Remove demo/seed scan records from the database.
+
+    Deletes:
+    - Targets with origin='demo' (or name containing 'acme-chat-demo')
+    - All runs associated with demo targets
+    - Runs with run_origin='demo'
+    - All findings, agent_events, reports associated with those runs
+
+    Preserves all real scans, the schema, roles, admin user, payload packs.
+    """
+    from sqlalchemy import select
+
+    from app.core.db import get_engine
+    from app.models import AgentEvent, Finding, Report, Run, Target
+
+    await init_db(create_all=False)
+
+    # Ensure origin column exists on targets (safe no-op if already present)
+    engine = get_engine()
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE targets ADD COLUMN origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+            print("  Added origin column to targets table.")
+        except Exception:
+            pass  # column already exists
+        # Ensure run_origin column exists on runs
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE runs ADD COLUMN run_origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+        except Exception:
+            pass  # column already exists
+
+    async with get_session_factory()() as session:
+        # 1) Find demo targets (by origin field OR by name heuristic)
+        demo_targets = (
+            await session.execute(
+                select(Target).where(
+                    (Target.origin == "demo") | (Target.name == "acme-chat-demo")
+                )
+            )
+        ).scalars().all()
+        demo_target_ids = {t.id for t in demo_targets}
+
+        # 2) Find demo runs (by run_origin OR associated with demo targets)
+        demo_runs = (
+            await session.execute(
+                select(Run).where(
+                    (Run.run_origin == "demo") | (Run.target_id.in_(demo_target_ids))
+                )
+            )
+        ).scalars().all()
+
+        if not demo_targets and not demo_runs:
+            print("No demo records found — database is clean.")
+            return
+
+        demo_run_ids = [r.id for r in demo_runs]
+
+        # 3) Delete associated records (FK dependencies)
+        deleted_events = 0
+        deleted_findings = 0
+        deleted_reports = 0
+        for run_id in demo_run_ids:
+            er = await session.execute(
+                __import__("sqlalchemy").delete(AgentEvent).where(AgentEvent.run_id == run_id)
+            )
+            deleted_events += er.rowcount
+            fr = await session.execute(
+                __import__("sqlalchemy").delete(Finding).where(Finding.run_id == run_id)
+            )
+            deleted_findings += fr.rowcount
+            rr = await session.execute(
+                __import__("sqlalchemy").delete(Report).where(Report.run_id == run_id)
+            )
+            deleted_reports += rr.rowcount
+
+        # 4) Delete the demo runs
+        for run in demo_runs:
+            await session.delete(run)
+
+        # 5) Delete the demo targets
+        for target in demo_targets:
+            await session.delete(target)
+
+        await session.commit()
+        print(f"Removed:")
+        print(f"  {len(demo_targets)} demo target(s)")
+        print(f"  {len(demo_runs)} demo run(s)")
+        print(f"  {deleted_findings} finding(s)")
+        print(f"  {deleted_events} agent event(s)")
+        print(f"  {deleted_reports} report(s)")
+        print("Database is now clean of demo data.")
+
+
+async def cmd_diagnose(args: argparse.Namespace) -> None:
+    """Print database diagnostic information (counts by origin)."""
+    from sqlalchemy import func, select
+
+    from app.core.config import get_settings
+    from app.core.db import get_engine
+    from app.models import AgentEvent, Finding, Report, Run, Target
+
+    await init_db(create_all=False)
+
+    # Ensure origin column exists
+    engine = get_engine()
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE targets ADD COLUMN origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+        except Exception:
+            pass
+        try:
+            await conn.execute(
+                __import__("sqlalchemy").text(
+                    "ALTER TABLE runs ADD COLUMN run_origin VARCHAR(16) NOT NULL DEFAULT 'real'"
+                )
+            )
+        except Exception:
+            pass
+
+    settings = get_settings()
+    db_url = settings.database_url
+    # Mask password in URL for display
+    if "@" in db_url:
+        before_at, after_at = db_url.split("@", 1)
+        if "://" in before_at:
+            protocol, _ = before_at.split("://", 1)
+            db_display = f"{protocol}://***@{after_at}"
+        else:
+            db_display = db_url
+    else:
+        db_display = db_url
+
+    async with get_session_factory()() as session:
+        # Targets
+        total_targets = (
+            await session.execute(select(func.count(Target.id))
+        )).scalar() or 0
+        real_targets = (
+            await session.execute(
+                select(func.count(Target.id)).where(
+                    (Target.origin == "real") | (Target.origin.is_(None))
+                )
+            )
+        ).scalar() or 0
+        demo_targets = (
+            await session.execute(
+                select(func.count(Target.id)).where(Target.origin == "demo")
+            )
+        ).scalar() or 0
+
+        # Runs
+        total_runs = (
+            await session.execute(select(func.count(Run.id)))
+        ).scalar() or 0
+        real_runs = (
+            await session.execute(
+                select(func.count(Run.id)).where(
+                    (Run.run_origin == "real") | (Run.run_origin.is_(None))
+                )
+            )
+        ).scalar() or 0
+        demo_runs = (
+            await session.execute(
+                select(func.count(Run.id)).where(Run.run_origin == "demo")
+            )
+        ).scalar() or 0        # Findings (no origin field — counted via run association)
+        total_findings = (
+            await session.execute(select(func.count(Finding.id))
+        )).scalar() or 0
+        event_count = (await session.execute(select(func.count(AgentEvent.id)))).scalar() or 0
+        report_count = (await session.execute(select(func.count(Report.id)))).scalar() or 0
+
+    print("=" * 50)
+    print("  Aegis-LLM Database Diagnostic")
+    print("=" * 50)
+    print(f"\n  Database: {db_display}")
+    print(f"\n  Targets:")
+    print(f"    Total:     {total_targets}")
+    print(f"    Real:      {real_targets}")
+    print(f"    Demo:      {demo_targets}")
+    print(f"\n  Runs:")
+    print(f"    Total:     {total_runs}")
+    print(f"    Real:      {real_runs}")
+    print(f"    Demo:      {demo_runs}")
+    print(f"\n  Findings:")
+    print(f"    Total:     {total_findings}")
+    print(f"\n  Agent events:  {event_count}")
+    print(f"  Reports:       {report_count}")
+    print()
 
 
 # ── entrypoint ──────────────────────────────────────────────────────────────
@@ -427,6 +805,33 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("demo", help="end-to-end demo against the bundled mock target")
     p.set_defaults(func=cmd_demo)
+
+    p = sub.add_parser("reset-demo-data", help="remove demo/seed scan records from the database")
+    p.set_defaults(func=cmd_reset_demo_data)
+
+    p = sub.add_parser("diagnose", help="print database diagnostic information")
+    p.set_defaults(func=cmd_diagnose)
+
+    p = sub.add_parser("scan-real", help="register + scan a real AI/LLM target")
+    p.add_argument("--url", required=True, help="target endpoint URL")
+    p.add_argument("--name", default="", help="target name (auto-generated if omitted)")
+    p.add_argument("--description", default="")
+    p.add_argument("--connector-type", default="rest", choices=["rest", "browser", "websocket"])
+    p.add_argument("--model", default="", help="model name for API requests")
+    p.add_argument("--api-key", default="", help="API key / bearer token")
+    p.add_argument("--api-key-header", default="Authorization", help="header name for API key")
+    p.add_argument("--api-key-prefix", default="Bearer ", help="prefix before the key value")
+    p.add_argument("--headers", default="", help='extra headers as JSON, e.g. \'{"X-Custom": "val"}\'')
+    p.add_argument("--body-template", default="", help='JSON body template with {messages} placeholder')
+    p.add_argument("--response-path", default="", help='dotted path to extract reply, e.g. choices.0.message.content')
+    p.add_argument("--method", default="", help="HTTP method (default: POST)")
+    p.add_argument("--timeout", type=float, default=30.0, help="connection timeout in seconds")
+    p.add_argument("--insecure", action="store_true", help="disable TLS verification (local dev only)")
+    p.add_argument("--packs", default="prompt-injection,jailbreak,data-exfiltration", help="comma-separated pack names")
+    p.add_argument("--dry-run", action="store_true", default=None)
+    p.add_argument("--no-dry-run", dest="dry_run", action="store_false")
+    p.add_argument("--max-turns", type=int, default=None)
+    p.set_defaults(func=cmd_scan_real)
     return parser
 
 

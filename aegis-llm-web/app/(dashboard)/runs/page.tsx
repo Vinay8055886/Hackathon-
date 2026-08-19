@@ -109,7 +109,10 @@ export default function RunsPage() {
                     <TableCell><RunStatusIndicator status={run.status} /></TableCell>
                     <TableCell className="font-mono text-xs">{run.findings_count}</TableCell>
                     <TableCell>
-                      {run.dry_run ? <Badge variant="secondary">dry-run</Badge> : <Badge className="bg-severity-low/15 text-severity-low">live</Badge>}
+                      <div className="flex gap-1">
+                        {run.dry_run ? <Badge variant="secondary">dry-run</Badge> : <Badge className="bg-severity-low/15 text-severity-low">live</Badge>}
+                        {run.run_origin === "demo" ? <Badge variant="outline">demo</Badge> : null}
+                      </div>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{run.tokens_used.toLocaleString()}</TableCell>
                     <TableCell className="font-mono text-xs">${run.cost_estimate_usd.toFixed(4)}</TableCell>

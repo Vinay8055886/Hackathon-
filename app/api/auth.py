@@ -12,15 +12,43 @@ from app.auth.security import create_access_token, hash_password, verify_passwor
 from app.core.config import get_settings
 from app.models import Role, User
 from app.schemas import LoginRequest, TokenResponse, UserCreate, UserOut
+from app.safety.login_rate_limiter import (
+    LoginRateLimitExceeded,
+    get_login_limiter,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _client_ip(request: Request) -> str:
+    """Extract the real client IP, respecting X-Forwarded-For behind a proxy."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, session: SessionDep) -> TokenResponse:
+async def login(body: LoginRequest, request: Request, session: SessionDep) -> TokenResponse:
+    ip = _client_ip(request)
+    limiter = get_login_limiter()
+    try:
+        await limiter.check(ip)
+    except LoginRateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many login attempts. Try again in {int(exc.retry_after)} seconds.",
+            headers={"Retry-After": str(int(exc.retry_after))},
+        )
+
     user = (
         await session.execute(select(User).where(User.username == body.username))
     ).scalar_one_or_none()
+
+    # Always record the attempt (whether user exists or not) to prevent
+    # user-enumeration via rate limit differential.
+    await limiter.record(ip)
+
     if user is None or not verify_password(body.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
