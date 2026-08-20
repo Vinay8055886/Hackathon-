@@ -76,12 +76,16 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(BodySizeLimitMiddleware, max_body_bytes=1_048_576)  # 1 MB
 
-    # CORS: permissive in dev, locked down in prod
-    allowed_origins = (
-        ["http://localhost:3000", "http://127.0.0.1:3000"]
-        if not settings.is_prod
-        else []
-    )
+    # CORS: permissive in dev, configurable in prod
+    if settings.is_prod:
+        configured = settings.cors_allowed_origins
+        allowed_origins = (
+            [o.strip() for o in configured.split(",") if o.strip()]
+            if configured
+            else []
+        )
+    else:
+        allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,

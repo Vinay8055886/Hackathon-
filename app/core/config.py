@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     # ── Mock target ─────────────────────────────────────────────────────────
     mock_target_port: int = 8100
 
+    # ── CORS (production) ───────────────────────────────────────────────────
+    cors_allowed_origins: str = ""  # comma-separated list, e.g. "https://your-app.vercel.app"
+
     # ── Observability ───────────────────────────────────────────────────────
     enable_otel: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:4317"

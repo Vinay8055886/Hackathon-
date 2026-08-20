@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd aegis-llm-web && npm run build",
+  "outputDirectory": "aegis-llm-web/.next",
+  "installCommand": "cd aegis-llm-web && npm install",
+  "framework": "nextjs",
+  "regions": ["iad1"]
+}
